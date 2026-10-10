@@ -97,7 +97,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className="text-left p-2 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 text-xs transition-colors flex items-center justify-between"
             >
               <div>
-                <div className="font-semibold text-slate-900">Advocate Rajesh Sharma</div>
+                <div className="font-semibold text-slate-900">Advocate Siddharudha Tegur</div>
                 <div className="text-[10px] text-slate-500 font-mono">
                   Supreme Court & Karnataka HC &bull; KAR/1428/2008
                 </div>

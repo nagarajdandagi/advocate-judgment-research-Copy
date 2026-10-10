@@ -105,7 +105,7 @@ async function main() {
     data: {
       email: "advocate@supremecourt.in",
       passwordHash,
-      name: "Advocate Rajesh Sharma",
+      name: "Advocate Siddharudha Tegur",
       barRegistrationNo: "KAR/1428/2008",
       courtPractice: "Supreme Court of India & High Court of Karnataka",
       role: "ADVOCATE",
@@ -134,7 +134,7 @@ async function main() {
     },
   });
 
-  console.log("Created Default Users (Advocate Rajesh Sharma, Priyamvada Rao, Admin)");
+  console.log("Created Default Users (Advocate Siddharudha Tegur, Priyamvada Rao, Admin)");
 
   // 5. Create Acts & Act Sections
   // Criminal Law & Legislation
@@ -1303,7 +1303,7 @@ Bail application to be decided on merits, but the seriousness of the economic of
     ],
   });
 
-  // 11. Create Advocate Research Folders & Bookmarks for Advocate Rajesh Sharma
+  // 11. Create Advocate Research Folders & Bookmarks for Advocate Siddharudha Tegur
   const folderBail = await prisma.researchFolder.create({
     data: {
       userId: advocateUser.id,

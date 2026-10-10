@@ -149,7 +149,7 @@ For immediate testing, default accounts are pre-seeded:
 
 | Advocate Name | Email | Password | Role / Jurisdiction |
 | :--- | :--- | :--- | :--- |
-| **Advocate Rajesh Sharma** | `advocate@supremecourt.in` | `Advocate@2026` | Supreme Court & Karnataka HC (`KAR/1428/2008`) |
+| **Advocate Siddharudha Tegur** | `advocate@supremecourt.in` | `Advocate@2026` | Supreme Court & Karnataka HC (`KAR/1428/2008`) |
 | **Advocate Priyamvada Rao** | `advocate.karnataka@law.in` | `Advocate@2026` | High Court of Karnataka, Bengaluru (`KAR/2891/2014`) |
 | **Legal Tech Administrator** | `admin@court.in` | `Admin@2026` | Ingestion Bureau Administrator |
 

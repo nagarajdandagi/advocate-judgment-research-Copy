@@ -56,7 +56,7 @@ export default function Home() {
       if (data.authenticated && data.user) {
         setCurrentUser(data.user);
       } else {
-        // Auto-login with default advocate Rajesh Sharma for smooth initial UX if not logged in
+        // Auto-login with default advocate Siddharudha Tegur for smooth initial UX if not logged in
         const autoLogin = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
