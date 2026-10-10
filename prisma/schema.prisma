@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String               @id @default(uuid())
+  email              String               @unique
+  passwordHash       String
+  name               String
+  barRegistrationNo  String?
+  courtPractice      String?              // e.g. "Supreme Court of India", "High Court of Karnataka"
+  role               String               @default("ADVOCATE") // "ADVOCATE", "SENIOR_ADVOCATE", "ADMIN"
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  bookmarks          Bookmark[]
+  researchFolders    ResearchFolder[]
+  personalNotes      PersonalNote[]
+  searchHistories    SearchHistory[]
+  auditLogs          AuditLog[]
+}
+
+model Court {
+  id              String      @id @default(uuid())
+  code            String      @unique // "SCI", "HCKAR"
+  name            String      // "Supreme Court of India", "High Court of Karnataka"
+  jurisdiction    String      // "All India", "Karnataka State"
+  state           String?     // null or "Karnataka"
+  hierarchyLevel  Int         @default(1) // 1: Supreme Court, 2: High Court
+  benches         String?     // JSON array of benches: ["Principal Bench, Bengaluru", "Dharwad Bench", "Kalaburagi Bench"]
+  websiteUrl      String
+  active          Boolean     @default(true)
+  judgments       Judgment[]
+  connectors      SourceConnector[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model Judgment {
+  id                  String                    @id @default(uuid())
+  courtId             String
+  court               Court                     @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  benchName           String                    // "Principal Bench, New Delhi", "Dharwad Bench", etc.
+  benchType           String                    // "Division Bench", "Full Bench", "Constitution Bench", "Single Judge"
+  title               String                    // e.g. "Arnesh Kumar vs State of Bihar & Anr"
+  petitioner          String?
+  respondent          String?
+  caseType            String                    // "Criminal Appeal", "Writ Petition", "Special Leave Petition (Crl.)", "Regular First Appeal"
+  caseNumber          String                    // "Criminal Appeal No. 1277 of 2014"
+  caseYear            Int?
+  judgmentDate        DateTime                  // Date of pronouncement
+  disposalNature      String?                   // "Allowed", "Dismissed", "Partly Allowed", "Disposed of with directions"
+  authorJudge         String?                   // "Chandrachud, J.", "B.V. Nagarathna, J."
+  coram               String?                   // Full coram / bench member names
+  neutralCitation     String?                   @unique // e.g. "2014 INSC 493"
+  reportedCitation    String?                   // e.g. "(2014) 8 SCC 273; AIR 2014 SC 2756"
+  legalTopics         String?                   // JSON string array of topics e.g. ["Bail", "Section 498A IPC", "Arrest Guidelines"]
+  folderCategories    String?                   // JSON array of folders e.g. ["Criminal Matters", "Bail and Anticipatory Bail"]
+  headnote            String?
+  fullText            String                    // Text formatted with paragraph breaks: [1] ... [2] ...
+  paragraphCount      Int                       @default(1)
+  sourceUrl           String?                   // Official judgment download URL
+  verificationStatus  String                    @default("VERIFIED") // "VERIFIED", "PENDING_VERIFICATION", "MANUAL_IMPORT"
+  documentChecksum    String?                   // SHA256 checksum of original text/PDF
+  isOverruled         Boolean                   @default(false)
+  precedentialStatus  String                    @default("BINDING_PRECEDENT") // "BINDING_PRECEDENT", "PERSUASIVE", "SUPERSEDED_STATUTE"
+  practicalNotes      String?                   // Advocate guidance / practice pointer
+  
+  // Structured Brief (Advocate's Case Brief - 19 Fields)
+  briefFacts          String?
+  briefIssues         String?
+  briefArguments      String?
+  briefQuestions      String?
+  briefReasoning      String?
+  briefOutcome        String?
+  briefRatioDecidendi String?
+  briefObiterDicta    String?
+  briefEarlierCases   String?
+  briefFollowedOverruled String?
+  briefAdvocateRelevance String?
+  briefImportantParas String?
+  briefLimitations    String?
+  isAiGenerated       Boolean                   @default(false)
+  
+  documents           JudgmentDocument[]
+  sections            JudgmentSection[]
+  citations           Citation[]
+  outwardRelations    JudgmentRelationship[]   @relation("SourceJudgment")
+  inwardRelations     JudgmentRelationship[]   @relation("TargetJudgment")
+  bookmarks           Bookmark[]
+  folderItems         ResearchFolderJudgment[]
+  personalNotes       PersonalNote[]
+  
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@index([courtId])
+  @@index([judgmentDate])
+  @@index([caseType])
+  @@index([neutralCitation])
+  @@index([reportedCitation])
+  @@index([verificationStatus])
+}
+
+model JudgmentDocument {
+  id              String    @id @default(uuid())
+  judgmentId      String
+  judgment        Judgment  @relation(fields: [judgmentId], references: [id], onDelete: Cascade)
+  fileName        String
+  fileType        String    @default("application/pdf")
+  fileSize        Int       @default(0)
+  fileUrl         String?
+  rawText         String?
+  ocrPerformed    Boolean   @default(false)
+  ocrConfidence   Float?
+  extractionStatus String   @default("COMPLETED") // "COMPLETED", "FAILED", "PENDING"
+  checksumSha256  String
+  isOriginal      Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  @@index([judgmentId])
+  @@index([checksumSha256])
+}
+
+model Act {
+  id               String       @id @default(uuid())
+  shortName        String       @unique // "IPC", "CrPC", "BNS", "BNSS", "BSA", "NI Act"
+  officialName     String       // "Indian Penal Code, 1860"
+  year             Int          // 1860, 1973, 2023
+  category         String       // "Criminal Law", "Civil Law", "Commercial Law", "Constitutional Law"
+  isHistorical     Boolean      @default(false) // true for IPC, CrPC, Evidence Act
+  effectiveDate    DateTime?
+  repealedOn       DateTime?
+  transitionalNote String?      // Guidance on application post 1 July 2024
+  sections         ActSection[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model ActSection {
+  id                    String            @id @default(uuid())
+  actId                 String
+  act                   Act               @relation(fields: [actId], references: [id], onDelete: Cascade)
+  chapterNumber         String?           // e.g. "Chapter XVII"
+  chapterTitle          String?           // e.g. "Of Offences Against Property"
+  sectionNumber         String            // e.g. "420", "438", "138", "318(4)"
+  sectionTitle          String            // e.g. "Cheating and dishonestly inducing delivery of property"
+  contentSummary        String?           // Statutory provision summary
+  correspondingActName  String?           // e.g. "Bharatiya Nyaya Sanhita, 2023"
+  correspondingSection  String?           // e.g. "Section 318(4)"
+  equivalenceType       String            @default("VERIFIED") // "VERIFIED", "APPROXIMATE", "UNAVAILABLE"
+  transitionalGuidance  String?           // Legal guidance on applicability (FIR date, proceeding date)
+  judgmentSections      JudgmentSection[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@unique([actId, sectionNumber])
+  @@index([actId])
+  @@index([sectionNumber])
+}
+
+model JudgmentSection {
+  id                  String     @id @default(uuid())
+  judgmentId          String
+  judgment            Judgment   @relation(fields: [judgmentId], references: [id], onDelete: Cascade)
+  actSectionId        String
+  actSection          ActSection @relation(fields: [actSectionId], references: [id], onDelete: Cascade)
+  rawSectionReference String?    // e.g. "Section 420 read with Section 120B IPC"
+  isPrimary           Boolean    @default(true)
+  notes               String?
+  createdAt           DateTime   @default(now())
+
+  @@unique([judgmentId, actSectionId])
+  @@index([judgmentId])
+  @@index([actSectionId])
+}
+
+model Citation {
+  id               String   @id @default(uuid())
+  judgmentId       String
+  judgment         Judgment @relation(fields: [judgmentId], references: [id], onDelete: Cascade)
+  reporter         String   // "SCC", "AIR", "ILR Kar", "INSC", "KCCR", "Kant LJ"
+  year             Int
+  volume           Int?
+  pageNumber       String?
+  fullCitationText String   // "(2014) 8 SCC 273"
+  isPrimary        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([judgmentId])
+  @@index([fullCitationText])
+}
+
+model JudgmentRelationship {
+  id                 String    @id @default(uuid())
+  sourceJudgmentId   String
+  sourceJudgment     Judgment  @relation("SourceJudgment", fields: [sourceJudgmentId], references: [id], onDelete: Cascade)
+  targetJudgmentId   String?
+  targetJudgment     Judgment? @relation("TargetJudgment", fields: [targetJudgmentId], references: [id], onDelete: SetNull)
+  targetCitationText String?   // Citation text if target not yet in database
+  relationshipType   String    // "FOLLOWED", "DISTINGUISHED", "OVERRULED", "CITED", "REFERRED", "AFFIRMED"
+  treatmentNotes     String?   // "Paragraph 14: Followed on requirement of notice under 41A"
+  verified           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+
+  @@index([sourceJudgmentId])
+  @@index([targetJudgmentId])
+}
+
+model Bookmark {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  judgmentId String
+  judgment   Judgment @relation(fields: [judgmentId], references: [id], onDelete: Cascade)
+  tags       String?  // JSON string array e.g. ["Bail", "Anticipatory", "Kar HC"]
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, judgmentId])
+  @@index([userId])
+  @@index([judgmentId])
+}
+
+model ResearchFolder {
+  id              String                   @id @default(uuid())
+  userId          String
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String                   // e.g. "Bail Applications - Dharwad Bench"
+  description     String?
+  clientReference String?                  // Client matter / Brief title
+  caseReference   String?                  // Case No / Court ref
+  color           String                   @default("slate")
+  items           ResearchFolderJudgment[]
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([userId])
+}
+
+model ResearchFolderJudgment {
+  id         String         @id @default(uuid())
+  folderId   String
+  folder     ResearchFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  judgmentId String
+  judgment   Judgment       @relation(fields: [judgmentId], references: [id], onDelete: Cascade)
+  userNotes  String?
+  addedAt    DateTime       @default(now())
+
+  @@unique([folderId, judgmentId])
+  @@index([folderId])
+  @@index([judgmentId])
+}
+
+model PersonalNote {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  judgmentId     String
+  judgment       Judgment @relation(fields: [judgmentId], references: [id], onDelete: Cascade)
+  paragraphIndex Int?     // If linked to specific paragraph [1], [2], etc.
+  content        String
+  isPrivate      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([judgmentId])
+}
+
+model SearchHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  queryText   String
+  filtersJson String?  // JSON filters applied
+  resultCount Int      @default(0)
+  searchedAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([searchedAt])
+}
+
+model IngestionJob {
+  id             String    @id @default(uuid())
+  source         String    // "SCI_PORTAL", "HCKAR_PORTAL", "MANUAL_PDF_IMPORT"
+  jobType        String    // "METADATA_SYNC", "DOCUMENT_OCR", "BATCH_IMPORT"
+  status         String    @default("PENDING") // "PENDING", "PROCESSING", "COMPLETED", "FAILED"
+  totalFound     Int       @default(0)
+  processedCount Int       @default(0)
+  failedCount    Int       @default(0)
+  errorMessage   String?
+  detailsJson    String?
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([status])
+}
+
+model SourceConnector {
+  id             String    @id @default(uuid())
+  courtId        String
+  court          Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  connectorName  String    // "Supreme Court Daily Orders & Judgments", "Karnataka High Court Orders"
+  sourceUrl      String
+  authType       String    @default("PUBLIC_PORTAL")
+  lastSyncAt     DateTime?
+  status         String    @default("ONLINE") // "ONLINE", "DEGRADED", "OFFLINE"
+  rateLimitNotes String?
+  robotsVerified Boolean   @default(true)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([courtId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String   // "LOGIN", "IMPORT_JUDGMENT", "REINDEX_SEARCH", "UPDATE_METADATA", "EXPORT_RESEARCH"
+  entityType  String   // "JUDGMENT", "DOCUMENT", "CONNECTOR", "USER"
+  entityId    String?
+  detailsJson String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
